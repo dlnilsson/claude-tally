@@ -96,3 +96,22 @@ WHERE
     AND recorded_at >= DATE('now', 'weekday 0', '-6 days')
 GROUP BY project_dir
 ORDER BY total_cost DESC;
+
+
+-- all, with support for git worktree suffix
+WITH raw_sessions AS (
+  SELECT
+      raw ->> '$.workspace.project_dir' AS project_dir,
+      raw ->> '$.cost.total_cost_usd' AS cost,
+      raw ->> '$.cost.total_lines_added' AS lines_added,
+      raw ->> '$.cost.total_lines_removed' AS lines_removed
+  FROM status
+  WHERE id IN (SELECT MAX(id) FROM status GROUP BY session_id)
+)
+SELECT
+  CASE
+      WHEN INSTR(
+          SUBSTR(project_dir, LENGTH(RTRIM(project_dir, REPLACE(project_dir, '/', ''))) + 1),
+          '.'
+      ) > 1
+      THEN RTRIM(project_dir, REPLACE(project_dir, '/', ''))
