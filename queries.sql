@@ -115,3 +115,27 @@ SELECT
           '.'
       ) > 1
       THEN RTRIM(project_dir, REPLACE(project_dir, '/', ''))
+
+
+-- latest session status snapshot
+SELECT
+    session_id,
+    json_extract(raw, '$.workspace.current_dir') AS current_dir,
+    json_extract(raw, '$.context_window.total_input_tokens') AS total_input_tokens,
+    json_extract(raw, '$.context_window.total_output_tokens') AS total_output_tokens,
+    json_extract(raw, '$.cost.total_cost_usd') AS total_cost_usd,
+    json_extract(raw, '$.cost.total_duration_ms') / 60000.0 AS total_duration_minutes
+FROM (
+    SELECT
+        session_id,
+        raw,
+        recorded_at,
+        id,
+        ROW_NUMBER() OVER (
+            PARTITION BY session_id
+            ORDER BY recorded_at DESC, id DESC
+        ) AS rn
+    FROM status
+) s
+WHERE rn = 1
+ORDER BY recorded_at DESC, id DESC;
